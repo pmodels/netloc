@@ -180,3 +180,23 @@ static int find_matching_nodes(struct netloc_topology * topology, struct netloc_
 
     return NETLOC_SUCCESS;
 }
+
+int netloc_parse_topology(netloc_topology_t* topology, const char * node_file){
+	netloc_topology_t network_topology;
+	int ret_status;
+	netloc_network_t network = *(netloc_dt_network_t_construct());
+	asprintf(&network.node_uri, "%s", node_file);
+	ret_status = netloc_attach(&network_topology, network);
+	if (ret_status != NETLOC_SUCCESS) {
+		fprintf(stderr, "Error: Failed to load the topology\n");
+		return ret_status;
+	}
+	ret_status = support_load_json(network_topology);
+	if (ret_status != NETLOC_SUCCESS) {
+		fprintf(stderr, "Error: Failed to load the topology\n");
+		return ret_status;
+	}
+
+	*topology = network_topology;
+	return NETLOC_SUCCESS;
+}

@@ -123,6 +123,7 @@ int support_load_json(struct netloc_topology * topology)
     cur_idx = 0;
     json_object_foreach(json_node_list, key, json_node) {
         topology->nodes[cur_idx] = netloc_dt_node_t_json_decode(topology->edges, json_object_get(json_node_list, key) );
+        topology->nodes[cur_idx]->__uid__ = cur_idx;
         ++cur_idx;
     }
 
@@ -168,110 +169,121 @@ int support_load_json(struct netloc_topology * topology)
     /*
      * Load the json object (physical paths)
      */
-    ret = support_load_json_from_file(topology->network->phy_path_uri, &json);
-    if( NETLOC_SUCCESS != ret ) {
-        fprintf(stderr, "Error: Failed to load the physical path file %s\n", topology->network->phy_path_uri);
-        exit_status = ret;
-        goto cleanup;
+    if(topology->network->phy_path_uri!=NULL){
+		ret = support_load_json_from_file(topology->network->phy_path_uri, &json);
+		if( NETLOC_SUCCESS != ret ) {
+			fprintf(stderr, "Error: Failed to load the physical path file %s\n", topology->network->phy_path_uri);
+			exit_status = ret;
+			goto cleanup;
+		}
+
+		if( !json_is_object(json) ) {
+			fprintf(stderr, "Error: json handle is not a valid object\n");
+			exit_status = NETLOC_SUCCESS;
+			goto cleanup;
+		}
+
+		/*
+		 * Read in the paths
+		 */
+		json_path_list = json_object_get(json, JSON_NODE_FILE_PATH_INFO);
+
+		cur_idx = 0;
+		json_object_foreach(json_path_list, key, json_path) {
+			node = NULL;
+			for(i = 0; i < topology->num_nodes; ++i) {
+				if( 0 == strncmp(topology->nodes[i]->physical_id, key, strlen(key) ) ) {
+					node = topology->nodes[i];
+					break;
+				}
+			}
+			if( NULL == node ) {
+				fprintf(stderr, "Error: Failed to find the node with physical ID %s for physical path\n", key);
+				exit_status = NETLOC_ERROR;
+				goto cleanup;
+			}
+
+			if( NULL != node->physical_paths ) {
+				netloc_lookup_table_destroy(node->physical_paths);
+			free(node->physical_paths);
+				node->physical_paths = NULL;
+			}
+			node->physical_paths = netloc_dt_node_t_json_decode_paths(topology->edges, json_path);
+			if( NULL == node->physical_paths ) {
+				fprintf(stderr, "Error: Failed to decode the physical path for node\n");
+				fprintf(stderr, "Error: Node: %s\n", netloc_pretty_print_node_t(node));
+				exit_status = NETLOC_ERROR;
+				goto cleanup;
+			}
+			node->num_phy_paths  = netloc_lookup_table_size(node->physical_paths);
+		}
+
+		if(NULL != json) {
+			json_decref(json);
+			json = NULL;
+		}
     }
-
-    if( !json_is_object(json) ) {
-        fprintf(stderr, "Error: json handle is not a valid object\n");
-        exit_status = NETLOC_SUCCESS;
-        goto cleanup;
-    }
-
-    /*
-     * Read in the paths
-     */
-    json_path_list = json_object_get(json, JSON_NODE_FILE_PATH_INFO);
-
-    cur_idx = 0;
-    json_object_foreach(json_path_list, key, json_path) {
-        node = NULL;
-        for(i = 0; i < topology->num_nodes; ++i) {
-            if( 0 == strncmp(topology->nodes[i]->physical_id, key, strlen(key) ) ) {
-                node = topology->nodes[i];
-                break;
-            }
-        }
-        if( NULL == node ) {
-            fprintf(stderr, "Error: Failed to find the node with physical ID %s for physical path\n", key);
-            exit_status = NETLOC_ERROR;
-            goto cleanup;
-        }
-
-        if( NULL != node->physical_paths ) {
-            netloc_lookup_table_destroy(node->physical_paths);
-	    free(node->physical_paths);
-            node->physical_paths = NULL;
-        }
-        node->physical_paths = netloc_dt_node_t_json_decode_paths(topology->edges, json_path);
-        if( NULL == node->physical_paths ) {
-            fprintf(stderr, "Error: Failed to decode the physical path for node\n");
-            fprintf(stderr, "Error: Node: %s\n", netloc_pretty_print_node_t(node));
-            exit_status = NETLOC_ERROR;
-            goto cleanup;
-        }
-        node->num_phy_paths  = netloc_lookup_table_size(node->physical_paths);
-    }
-
-    if(NULL != json) {
-        json_decref(json);
-        json = NULL;
-    }
-
 
     /*
      * Load the json object (logical paths)
      */
-    ret = support_load_json_from_file(topology->network->path_uri, &json);
-    if( NETLOC_SUCCESS != ret ) {
-        fprintf(stderr, "Error: Failed to load the path file %s\n", topology->network->path_uri);
-        exit_status = ret;
-        goto cleanup;
-    }
+	if (topology->network->path_uri != NULL) {
+		ret = support_load_json_from_file(topology->network->path_uri, &json);
+		if (NETLOC_SUCCESS != ret) {
+			fprintf(stderr, "Error: Failed to load the path file %s\n",
+					topology->network->path_uri);
+			exit_status = ret;
+			goto cleanup;
+		}
 
-    if( !json_is_object(json) ) {
-        fprintf(stderr, "Error: json handle is not a valid object\n");
-        exit_status = NETLOC_ERROR;
-        goto cleanup;
-    }
+		if (!json_is_object(json)) {
+			fprintf(stderr, "Error: json handle is not a valid object\n");
+			exit_status = NETLOC_ERROR;
+			goto cleanup;
+		}
 
-    /*
-     * Read in the paths
-     */
-    json_path_list = json_object_get(json, JSON_NODE_FILE_PATH_INFO);
+		/*
+		 * Read in the paths
+		 */
+		json_path_list = json_object_get(json, JSON_NODE_FILE_PATH_INFO);
 
-    cur_idx = 0;
-    json_object_foreach(json_path_list, key, json_path) {
-        node = NULL;
-        for(i = 0; i < topology->num_nodes; ++i) {
-            if( 0 == strncmp(topology->nodes[i]->physical_id, key, strlen(key) ) ) {
-                node = topology->nodes[i];
-                break;
-            }
-        }
-        if( NULL == node ) {
-            fprintf(stderr, "Error: Failed to find the node with physical ID %s for logical path\n", key);
-            return NETLOC_ERROR;
-        }
+		cur_idx = 0;
+		json_object_foreach(json_path_list, key, json_path)
+		{
+			node = NULL;
+			for (i = 0; i < topology->num_nodes; ++i) {
+				if (0
+						== strncmp(topology->nodes[i]->physical_id, key,
+								strlen(key))) {
+					node = topology->nodes[i];
+					break;
+				}
+			}
+			if ( NULL == node) {
+				fprintf(stderr,
+						"Error: Failed to find the node with physical ID %s for logical path\n",
+						key);
+				return NETLOC_ERROR;
+			}
 
-        if( NULL != node->logical_paths ) {
-            netloc_lookup_table_destroy(node->logical_paths);
-	    free(node->logical_paths);
-            node->logical_paths = NULL;
-        }
-        node->logical_paths = netloc_dt_node_t_json_decode_paths(topology->edges, json_path);
-        if( NULL == node->logical_paths ) {
-            fprintf(stderr, "Error: Failed to decode the logical path for node\n");
-            fprintf(stderr, "Error: Node: %s\n", netloc_pretty_print_node_t(node));
-            exit_status = NETLOC_ERROR;
-            goto cleanup;
-        }
-        node->num_log_paths = netloc_lookup_table_size(node->logical_paths);
-    }
-
+			if ( NULL != node->logical_paths) {
+				netloc_lookup_table_destroy(node->logical_paths);
+				free(node->logical_paths);
+				node->logical_paths = NULL;
+			}
+			node->logical_paths = netloc_dt_node_t_json_decode_paths(
+					topology->edges, json_path);
+			if ( NULL == node->logical_paths) {
+				fprintf(stderr,
+						"Error: Failed to decode the logical path for node\n");
+				fprintf(stderr, "Error: Node: %s\n",
+						netloc_pretty_print_node_t(node));
+				exit_status = NETLOC_ERROR;
+				goto cleanup;
+			}
+			node->num_log_paths = netloc_lookup_table_size(node->logical_paths);
+		}
+	}
 
     topology->nodes_loaded = true;
 

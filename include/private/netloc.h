@@ -69,28 +69,6 @@ struct netloc_dt_lookup_table_iterator {
 
 
 /**********************************************************************
- *        Topology object
- **********************************************************************/
-/**
- * Topology state used by the API functions.
- */
-struct netloc_topology {
-    /** Copy of the network structure */
-    netloc_network_t *network;
-
-    /** Lazy load the node list */
-    bool nodes_loaded;
-
-    /** Node List */
-    int num_nodes;
-    netloc_node_t **nodes;
-
-    /** Lookup table for all edge information */
-    struct netloc_dt_lookup_table *edges;
-};
-
-
-/**********************************************************************
  *        Datatype support functionality
  **********************************************************************/
 /**

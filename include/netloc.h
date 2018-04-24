@@ -293,6 +293,28 @@ typedef struct netloc_network_t netloc_network_t;
 struct netloc_node_t;
 typedef struct netloc_node_t netloc_node_t;
 
+/**
+ * \struct netloc_topology_t
+ * \brief Netloc Topology Context
+ *
+ * An opaque data structure used to reference a network topology.
+ *
+ * \note Must be initialized with \ref netloc_attach()
+ */
+struct netloc_topology {
+    /** Copy of the network structure */
+    netloc_network_t *network;
+
+    /** Lazy load the node list */
+    bool nodes_loaded;
+
+    /** Node List */
+    int num_nodes;
+    netloc_node_t **nodes;
+
+    /** Lookup table for all edge information */
+    struct netloc_dt_lookup_table *edges;
+};
 
 /**
  * \brief Netloc Edge Type
@@ -399,6 +421,7 @@ struct netloc_node_t {
     netloc_dt_lookup_table_t logical_paths;
 };
 
+NETLOC_DECLSPEC int netloc_parse_topology(netloc_topology_t* topology, const char * node_file);
 
 /**********************************************************************
  * Datatype Support Functions
