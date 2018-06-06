@@ -361,6 +361,10 @@ struct netloc_edge_t {
      * Initialized to NULL, and not used by the netloc library.
      */
     void * userdata;
+
+    /*Metadata: Edge bandwidth computed as a function of speed
+     * and width of the link*/
+    int bandwidth;
 };
 typedef struct netloc_edge_t netloc_edge_t;
 

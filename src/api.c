@@ -13,6 +13,47 @@
 #include <netloc.h>
 #include "support.h"
 
+struct infiniband_speed {
+    const char *class;
+    /*In gbps, per 1x */
+    float speed;
+} typedef infiniband_speed;
+
+infiniband_speed infiniband_speed_info[] = {
+    {"SDR", 2},
+    {"DDR", 4},
+    {"QDR", 8},
+    {"FDR10", 10},
+    {"FDR", 13.64},
+    {"EDR", 25},
+    {"HDR", 50},
+    {"XDR", 100},
+    {"NDR", 250},
+    {NULL, 0}
+};
+
+static void set_infiniband_edge_bandwidth(netloc_edge_t * edge)
+{
+    int i;
+    int bandwidth = 0;
+    for (i = 0; infiniband_speed_info[i].class; i++) {
+        if (!strcmp(edge->speed, infiniband_speed_info[i].class)) {
+            bandwidth = infiniband_speed_info[i].speed;
+        }
+    }
+    if (strcmp(edge->width, "2x")) {
+	edge->bandwidth = bandwidth * 2;
+    } else if (strcmp(edge->width, "4x")) {
+	edge->bandwidth = bandwidth * 4;
+    } else if (strcmp(edge->width, "8x")) {
+	edge->bandwidth = bandwidth * 8;
+    } else if (strcmp(edge->width, "12x")) {
+	edge->bandwidth = bandwidth * 12;
+    }else{
+	edge->bandwidth = bandwidth;
+    }
+}
+
 /**
  * Find all of the nodes that match the netloc_node_type_t
  *
@@ -185,6 +226,8 @@ int netloc_parse_topology(netloc_topology_t* topology, const char * node_file){
 	netloc_topology_t network_topology;
 	int ret_status;
 	netloc_network_t network = *(netloc_dt_network_t_construct());
+	struct netloc_dt_lookup_table_iterator *hti = NULL;
+
 	asprintf(&network.node_uri, "%s", node_file);
 	ret_status = netloc_attach(&network_topology, network);
 	if (ret_status != NETLOC_SUCCESS) {
@@ -196,6 +239,16 @@ int netloc_parse_topology(netloc_topology_t* topology, const char * node_file){
 		fprintf(stderr, "Error: Failed to load the topology\n");
 		return ret_status;
 	}
+
+    hti = netloc_dt_lookup_table_iterator_t_construct(network_topology->edges);
+    while (!netloc_lookup_table_iterator_at_end(hti)) {
+        netloc_edge_t *edge =
+            (netloc_edge_t *) netloc_lookup_table_iterator_next_entry(hti);
+        if (edge == NULL) {
+            break;
+        }
+        set_infiniband_edge_bandwidth(edge);
+    }
 
 	*topology = network_topology;
 	return NETLOC_SUCCESS;
