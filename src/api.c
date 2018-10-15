@@ -36,22 +36,23 @@ static void set_infiniband_edge_bandwidth(netloc_edge_t * edge)
 {
     int i;
     int bandwidth = 0;
-    for (i = 0; infiniband_speed_info[i].class; i++) {
-        if (!strcmp(edge->speed, infiniband_speed_info[i].class)) {
-            bandwidth = infiniband_speed_info[i].speed;
-        }
-    }
-    if (strcmp(edge->width, "2x")) {
-	edge->bandwidth = bandwidth * 2;
-    } else if (strcmp(edge->width, "4x")) {
-	edge->bandwidth = bandwidth * 4;
-    } else if (strcmp(edge->width, "8x")) {
-	edge->bandwidth = bandwidth * 8;
-    } else if (strcmp(edge->width, "12x")) {
-	edge->bandwidth = bandwidth * 12;
-    }else{
 	edge->bandwidth = bandwidth;
-    }
+	if (edge->speed != NULL && edge->width != NULL) {
+		for (i = 0; infiniband_speed_info[i].class; i++) {
+			if (!strcmp(edge->speed, infiniband_speed_info[i].class)) {
+				bandwidth = infiniband_speed_info[i].speed;
+			}
+		}
+		if (strcmp(edge->width, "2x")) {
+			edge->bandwidth = bandwidth * 2;
+		} else if (strcmp(edge->width, "4x")) {
+			edge->bandwidth = bandwidth * 4;
+		} else if (strcmp(edge->width, "8x")) {
+			edge->bandwidth = bandwidth * 8;
+		} else if (strcmp(edge->width, "12x")) {
+			edge->bandwidth = bandwidth * 12;
+		}
+	}
 }
 
 /**
@@ -239,7 +240,6 @@ int netloc_parse_topology(netloc_topology_t* topology, const char * node_file){
 		fprintf(stderr, "Error: Failed to load the topology\n");
 		return ret_status;
 	}
-
     hti = netloc_dt_lookup_table_iterator_t_construct(network_topology->edges);
     while (!netloc_lookup_table_iterator_at_end(hti)) {
         netloc_edge_t *edge =
